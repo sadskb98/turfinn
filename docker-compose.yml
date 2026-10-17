@@ -1,0 +1,214 @@
+services:
+
+  # ── Consul (config store) ─────────────────────────────────────────────────
+  consul:
+    image: hashicorp/consul:1.19
+    command: agent -server -bootstrap-expect=1 -data-dir=/consul/data -client=0.0.0.0 -ui
+    environment:
+      CONSUL_HTTP_TOKEN: turfinn-local-root-token
+      CONSUL_LOCAL_CONFIG: >-
+        {
+          "acl": {
+            "enabled": true,
+            "default_policy": "deny",
+            "down_policy": "extend-cache",
+            "tokens": {
+              "initial_management": "turfinn-local-root-token"
+            }
+          }
+        }
+    ports:
+      - "8500:8500"
+    volumes:
+      - consul_data:/consul/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  # ── Consul KV bootstrap (one-shot) ───────────────────────────────────────
+  # Reads secrets from .env (host side) and populates Consul KV.
+  # api/worker wait for this to complete before starting.
+  consul-init:
+    image: hashicorp/consul:1.19
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_HTTP_TOKEN: turfinn-local-root-token
+      # ── Pass-through from host .env ──────────────────────────────────────
+      APP_PORT:                      "8080"
+      APP_BASE_URL:                  ${APP_BASE_URL:-http://localhost:8080}
+      DB_HOST:                       postgres
+      DB_USER:                       turfinn
+      DB_PASSWORD:                   ${DB_PASSWORD:-turfinn}
+      DB_NAME:                       turfinn
+      DB_PORT:                       "5432"
+      REDIS_ADDR:                    redis:6379
+      ASYNQ_REDIS_ADDR:              redis:6379
+      JWT_SECRET:                    ${JWT_SECRET:-change-me-in-production}
+      MINIO_ENDPOINT:                minio:9000
+      MINIO_ACCESS_KEY:              ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY:              ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_USE_SSL:                 "false"
+      SSLCZ_STORE_ID:                ${SSLCZ_STORE_ID:-}
+      SSLCZ_STORE_PASSWD:            ${SSLCZ_STORE_PASSWD:-}
+      SSLCZ_BASE_URL:                ${SSLCZ_BASE_URL:-https://sandbox.sslcommerz.com}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      SMS_API_USER:                  ${SMS_API_USER:-}
+      SMS_API_PASS:                  ${SMS_API_PASS:-}
+      SMS_SID:                       ${SMS_SID:-}
+      CORS_ORIGINS:                  ${CORS_ORIGINS:-}
+      API_FOOTBALL_KEY:              ${API_FOOTBALL_KEY:-}
+      GNEWS_KEY:                     ${GNEWS_KEY:-}
+      SPORTS_LIVE_POLL_ENABLED:      ${SPORTS_LIVE_POLL_ENABLED:-false}
+      SPORTS_LIVE_POLL_INTERVAL:     ${SPORTS_LIVE_POLL_INTERVAL:-15s}
+      # Matchmaking economics + safety policy (all tunable without redeploy)
+      MATCH_JOIN_FEE_BDT:                       ${MATCH_JOIN_FEE_BDT:-20}
+      MATCH_DEFAULT_DURATION_MINUTES:           ${MATCH_DEFAULT_DURATION_MINUTES:-90}
+      MATCH_LATE_CANCEL_HOURS_THRESHOLD:        ${MATCH_LATE_CANCEL_HOURS_THRESHOLD:-6}
+      MATCH_LATE_CANCEL_STRIKE_LIMIT:           ${MATCH_LATE_CANCEL_STRIKE_LIMIT:-3}
+      MATCH_LATE_CANCEL_STRIKE_WINDOW_DAYS:     ${MATCH_LATE_CANCEL_STRIKE_WINDOW_DAYS:-30}
+      MATCH_HOSTING_BAN_DAYS:                   ${MATCH_HOSTING_BAN_DAYS:-30}
+      MATCH_AGE_GATE_MIN:                       ${MATCH_AGE_GATE_MIN:-16}
+      MATCH_TRUST_GATE_MIN_SUCCESSFUL:          ${MATCH_TRUST_GATE_MIN_SUCCESSFUL:-3}
+      MATCH_AUTO_SUSPEND_REPORT_THRESHOLD:      ${MATCH_AUTO_SUSPEND_REPORT_THRESHOLD:-3}
+      MATCH_EXTERNAL_PITCH_VERIFY_MIN_MATCHES:  ${MATCH_EXTERNAL_PITCH_VERIFY_MIN_MATCHES:-3}
+      MATCH_AUTO_CANCEL_BUFFER_MINUTES:         ${MATCH_AUTO_CANCEL_BUFFER_MINUTES:-30}
+      MATCH_AUTO_CANCEL_MIN_FILL_PCT:           ${MATCH_AUTO_CANCEL_MIN_FILL_PCT:-50}
+    volumes:
+      - ./infra/consul/init.sh:/init.sh:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: on-failure
+
+  # ── Go API ────────────────────────────────────────────────────────────────
+  api:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      CONSUL_URL:    http://consul:8500
+      CONSUL_TOKEN:  turfinn-local-root-token
+      CONSUL_PREFIX: turfinn
+    depends_on:
+      consul-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Worker (async tasks) ──────────────────────────────────────────────────
+  worker:
+    build: ./backend
+    command: ["./turfinn-worker"]
+    environment:
+      CONSUL_URL:    http://consul:8500
+      CONSUL_TOKEN:  turfinn-local-root-token
+      CONSUL_PREFIX: turfinn
+    depends_on:
+      consul-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+
+  # ── Mobile App ────────────────────────────────────────────────────────────
+  app:
+    image: nginx:1.27-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./build/web_app:/usr/share/nginx/html:ro
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ── Turf Manager Panel ───────────────────────────────────────────────────
+  manage:
+    image: nginx:1.27-alpine
+    ports:
+      - "3002:80"
+    volumes:
+      - ./build/web_manage:/usr/share/nginx/html:ro
+      - ./web/nginx_manage.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ── Super Admin Panel ─────────────────────────────────────────────────────
+  superadmin:
+    image: nginx:1.27-alpine
+    ports:
+      - "3003:80"
+    volumes:
+      - ./build/web_superadmin:/usr/share/nginx/html:ro
+      - ./web/nginx_superadmin.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     turfinn
+      POSTGRES_PASSWORD: turfinn
+      POSTGRES_DB:       turfinn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turfinn -d turfinn"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── MinIO (S3-compatible storage) ─────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  consul_data:

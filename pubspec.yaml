@@ -1,0 +1,80 @@
+name: turfinn
+description: Turfinn — the home ground of local legends.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  hooks_riverpod: ^2.5.1
+  flutter_hooks: ^0.20.5
+
+  # Navigation
+  go_router: ^13.2.5
+
+  # HTTP
+  dio: ^5.4.3+1
+
+  # Models
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.9.0
+
+  # Local storage
+  shared_preferences: ^2.2.3
+
+  # Utils
+  intl: ^0.20.2
+
+  # Fonts (Google Fonts as fallback; replace with Axiforma/Satoshi TTFs later)
+  google_fonts: ^6.2.1
+
+  # QR code display
+  qr_flutter: ^4.1.0
+
+  # Cached images
+  cached_network_image: ^3.3.1
+
+  # WebSocket (match chat)
+  web_socket_channel: ^3.0.1
+
+  # Share
+  share_plus: ^10.1.4
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  maplibre_gl: ^0.21.0
+  geolocator: ^14.0.2
+  file_picker: ^8.1.2
+  # Firebase / FCM
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+  # Navigation
+  url_launcher: ^6.3.0
+  webview_flutter: ^4.10.0
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.9
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.0
+  custom_lint: ^0.6.4
+  riverpod_lint: ^2.3.10
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

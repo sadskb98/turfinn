@@ -1,0 +1,157 @@
+# ===========================
+# Turfinn Central .gitignore
+# ===========================
+
+# ==== OS Generated ====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ==== IDE / Editors ====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+.atom/
+
+# ==== Environment / Secrets ====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ==== Flutter / Dart ====
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/doc/api/
+*.dart.js
+*.info.json
+*.js_
+*.js.deps
+*.js.map
+*.log
+pubspec.lock
+
+# Flutter generated
+*.g.dart
+*.freezed.dart
+*.gr.dart
+
+# Symbolication
+app.*.symbols
+
+# Obfuscation
+app.*.map.json
+
+# Flutter misc
+.build/
+.buildlog/
+.history
+.swiftpm/
+migrate_working_dir/
+
+# ==== Firebase ====
+google-services.json
+GoogleService-Info.plist
+
+# ==== Android ====
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.*
+**/android/key.properties
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+*.jks
+*.keystore
+
+# ==== iOS / macOS ====
+**/ios/.symlinks/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/macos/.symlinks/
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# ==== Linux / Windows ====
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+
+# ==== Web ====
+**/web/.dart_tool/
+
+# ==== Go Backend ====
+backend/api
+backend/tmp/
+backend/*.exe
+backend/*.exe~
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/*.test
+backend/*.out
+backend/vendor/
+backend/.air.toml
+
+# Go coverage
+backend/*.coverprofile
+backend/coverage.out
+backend/coverage.html
+
+# ==== Docker ====
+docker-compose.override.yml
+
+# ==== Testing ====
+coverage/
+*.lcov
+test-results/
+
+# ==== Build Outputs ====
+dist/
+out/
+*.tar.gz
+*.zip
+
+# ==== Miscellaneous ====
+*.class
+*.pyc
+*.bak   
+*.tmp
+*.temp
+.cache/
+node_modules/
+.svn/
+.worktrees/
+.claude/
+screenshots/
+logs/
+.superpowers/
+.mcp.json
+backend/worker

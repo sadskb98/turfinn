@@ -1,0 +1,8 @@
+build/
+.dart_tool/
+.idea/
+.vscode/
+*.iml
+.git/
+backend/
+web/Dockerfile
